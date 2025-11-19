@@ -4,6 +4,7 @@ import { ProgressIndicator } from './components/ProgressIndicator';
 import { ErrorList } from './components/ErrorList';
 import { FilterPanel } from './components/FilterPanel';
 import { MapView } from './components/MapView';
+import { ElectionCalendar } from './components/ElectionCalendar';
 import type {
   ProcessedLocation,
   AggregatedLocation,
@@ -19,6 +20,7 @@ import {
   applyFilters,
   getUniqueCategories,
 } from './services/dataAggregator';
+import { calculateCouncilSize } from './services/electionCalculator';
 
 function App() {
   // State
@@ -39,6 +41,7 @@ function App() {
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCompactFormat, setIsCompactFormat] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [geocodingErrors, setGeocodingErrors] = useState<GeocodingError[]>([]);
@@ -212,18 +215,63 @@ function App() {
           disabled={isProcessing || allLocations.length === 0}
         />
 
-        {filteredLocations.length > 0 && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '0.75rem',
-            backgroundColor: '#d4edda',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-            color: '#155724',
-          }}>
-            <strong>📍 {filteredLocations.length}</strong> Standorte auf der Karte
-          </div>
-        )}
+        {filteredLocations.length > 0 && (() => {
+          const totalPersons = filteredLocations.reduce((sum, loc) => sum + loc.totalCount, 0);
+          const councilSize = calculateCouncilSize(totalPersons);
+
+          return (
+            <>
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                backgroundColor: '#d4edda',
+                borderRadius: '4px',
+                fontSize: '0.875rem',
+                color: '#155724',
+              }}>
+                <div><strong>📍 {filteredLocations.length}</strong> Standorte auf der Karte</div>
+                <div style={{ marginTop: '0.25rem' }}>
+                  <strong>👥 {totalPersons}</strong> Personen gesamt
+                </div>
+                {councilSize > 0 && (
+                  <div style={{
+                    marginTop: '0.5rem',
+                    paddingTop: '0.5rem',
+                    borderTop: '1px solid #28a745'
+                  }}>
+                    <strong>⚖️ BR-Größe: {councilSize} {councilSize === 1 ? 'Mitglied' : 'Mitglieder'}</strong>
+                    <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.8 }}>
+                      (nach §9 BetrVG)
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Election Calendar Toggle Button */}
+              <button
+                onClick={() => setIsCalendarOpen(true)}
+                style={{
+                  width: '100%',
+                  marginTop: '1rem',
+                  padding: '0.75rem',
+                  backgroundColor: '#e20074',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '0.875rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                ⚖️ BR-Wahlkalender öffnen
+              </button>
+            </>
+          );
+        })()}
 
         <div style={{
           marginTop: '2rem',
@@ -282,6 +330,12 @@ function App() {
           <MapView locations={filteredLocations} />
         )}
       </div>
+
+      {/* Election Calendar Slide-in Panel */}
+      <ElectionCalendar
+        isOpen={isCalendarOpen}
+        onClose={() => setIsCalendarOpen(false)}
+      />
     </div>
   );
 }
