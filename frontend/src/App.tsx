@@ -38,6 +38,7 @@ function App() {
     current: '',
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isCompactFormat, setIsCompactFormat] = useState(false);
 
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [geocodingErrors, setGeocodingErrors] = useState<GeocodingError[]>([]);
@@ -54,6 +55,9 @@ function App() {
 
     // Step 1: Parse CSV
     const parseResult = await parseCSVFile(file);
+
+    // Set format flag
+    setIsCompactFormat(parseResult.isCompactFormat || false);
 
     if (parseResult.errors.length > 0) {
       setParseErrors(parseResult.errors);
@@ -178,6 +182,23 @@ function App() {
           progress={geocodingProgress}
           visible={isProcessing}
         />
+
+        {isCompactFormat && allLocations.length > 0 && (
+          <div style={{
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            backgroundColor: '#e7f3ff',
+            border: '1px solid #0078d4',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            color: '#004578'
+          }}>
+            <strong>ℹ Vereinfachtes Format erkannt</strong>
+            <div style={{ marginTop: '0.25rem' }}>
+              Die aggregierten Daten wurden erfolgreich verarbeitet.
+            </div>
+          </div>
+        )}
 
         <ErrorList
           errors={geocodingErrors}

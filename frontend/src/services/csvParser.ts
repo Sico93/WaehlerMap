@@ -4,12 +4,106 @@ import type { CSVRow } from '../types';
 export interface ParseResult {
   data: CSVRow[];
   errors: string[];
+  isCompactFormat?: boolean;
+}
+
+// Compact CSV format (aggregated by location)
+export interface CompactCSVRow {
+  address: string;
+  DTS?: string | number;
+  ISP?: string | number;
+  GK?: string | number;
 }
 
 /**
- * Parse CSV file and validate required fields
+ * Detect CSV format based on headers
  */
-export const parseCSVFile = (file: File): Promise<ParseResult> => {
+const detectFormat = (headers: string[]): 'detailed' | 'compact' => {
+  const headerSet = new Set(headers.map(h => h.trim().toLowerCase()));
+
+  // Compact format has: address + category columns (DTS, ISP, GK)
+  const hasCompactColumns =
+    headerSet.has('address') &&
+    (headerSet.has('dts') || headerSet.has('isp') || headerSet.has('gk'));
+
+  // Detailed format has: category field
+  const hasDetailedColumns = headerSet.has('category');
+
+  if (hasCompactColumns && !hasDetailedColumns) {
+    return 'compact';
+  }
+
+  return 'detailed';
+};
+
+/**
+ * Parse compact CSV format (aggregated data)
+ * Format: address, DTS, ISP, GK
+ */
+const parseCompactCSV = (file: File): Promise<ParseResult> => {
+  return new Promise((resolve) => {
+    const errors: string[] = [];
+    const expandedData: CSVRow[] = [];
+
+    Papa.parse<CompactCSVRow>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        results.data.forEach((row, index) => {
+          const rowNumber = index + 2;
+
+          // Validate address
+          if (!row.address || row.address.trim() === '') {
+            errors.push(`Zeile ${rowNumber}: Adresse fehlt`);
+            return;
+          }
+
+          const address = row.address.trim();
+
+          // Process each category column
+          const categories = ['DTS', 'ISP', 'GK'] as const;
+          categories.forEach(category => {
+            const value = row[category];
+            const count = value ? parseInt(String(value)) : 0;
+
+            // Skip if 0 or invalid
+            if (isNaN(count) || count <= 0) {
+              return;
+            }
+
+            // Create individual rows for each person (to match detailed format)
+            for (let i = 0; i < count; i++) {
+              expandedData.push({
+                address,
+                category,
+              });
+            }
+          });
+        });
+
+        // Check if any data was generated
+        if (expandedData.length === 0 && errors.length === 0) {
+          errors.push('Keine gültigen Daten gefunden. Bitte überprüfen Sie die Zahlenwerte in den Kategoriespalten.');
+        }
+
+        resolve({
+          data: expandedData,
+          errors,
+          isCompactFormat: true
+        });
+      },
+      error: (error) => {
+        errors.push(`Fehler beim Lesen der Datei: ${error.message}`);
+        resolve({ data: [], errors, isCompactFormat: true });
+      },
+    });
+  });
+};
+
+/**
+ * Parse detailed CSV file and validate required fields
+ */
+const parseDetailedCSV = (file: File): Promise<ParseResult> => {
   return new Promise((resolve) => {
     const errors: string[] = [];
     const validData: CSVRow[] = [];
@@ -52,11 +146,39 @@ export const parseCSVFile = (file: File): Promise<ParseResult> => {
           });
         }
 
-        resolve({ data: validData, errors });
+        resolve({ data: validData, errors, isCompactFormat: false });
       },
       error: (error) => {
         errors.push(`Fehler beim Lesen der Datei: ${error.message}`);
-        resolve({ data: [], errors });
+        resolve({ data: [], errors, isCompactFormat: false });
+      },
+    });
+  });
+};
+
+/**
+ * Parse CSV file (auto-detect format)
+ */
+export const parseCSVFile = (file: File): Promise<ParseResult> => {
+  return new Promise((resolve) => {
+    // First, peek at headers to detect format
+    Papa.parse(file, {
+      header: true,
+      preview: 1,
+      complete: (previewResults) => {
+        const headers = previewResults.meta.fields || [];
+        const format = detectFormat(headers);
+
+        // Parse with appropriate parser
+        if (format === 'compact') {
+          parseCompactCSV(file).then(resolve);
+        } else {
+          parseDetailedCSV(file).then(resolve);
+        }
+      },
+      error: () => {
+        // Fallback to detailed format on error
+        parseDetailedCSV(file).then(resolve);
       },
     });
   });
