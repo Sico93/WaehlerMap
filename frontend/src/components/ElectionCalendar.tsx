@@ -46,30 +46,13 @@ export const ElectionCalendar = ({ isOpen, onClose }: ElectionCalendarProps) => 
     setDeadlines(calculated);
   }, [electionDate, postingDate]);
 
-  // Get deadline style based on type
-  const getDeadlineStyle = (type: ElectionDeadline['type']) => {
+  // Get deadline marker based on type
+  const getDeadlineMarker = (type: ElectionDeadline['type']) => {
     switch (type) {
-      case 'milestone':
-        return { borderLeft: '4px solid #e20074', backgroundColor: '#fff0f6' };
-      case 'deadline':
-        return { borderLeft: '4px solid #dc3545', backgroundColor: '#fff5f5' };
-      case 'period-start':
-        return { borderLeft: '4px solid #28a745', backgroundColor: '#f0fff4' };
-      case 'period-end':
-        return { borderLeft: '4px solid #ffc107', backgroundColor: '#fffbf0' };
-      default:
-        return { borderLeft: '4px solid #6c757d', backgroundColor: '#f8f9fa' };
-    }
-  };
-
-  // Icon for deadline type
-  const getDeadlineIcon = (type: ElectionDeadline['type']) => {
-    switch (type) {
-      case 'milestone': return '🎯';
       case 'deadline': return '⚠️';
-      case 'period-start': return '▶️';
-      case 'period-end': return '⏹️';
-      default: return '📅';
+      case 'period-start': return '▶';
+      case 'period-end': return '⏹';
+      default: return '•';
     }
   };
 
@@ -207,32 +190,29 @@ export const ElectionCalendar = ({ isOpen, onClose }: ElectionCalendarProps) => 
               <div>Bitte Wahldatum und Aushangdatum eingeben,<br />um Fristen zu berechnen.</div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {deadlines.map((deadline, index) => (
                 <div
                   key={index}
                   style={{
-                    ...getDeadlineStyle(deadline.type),
-                    padding: '0.75rem',
-                    borderRadius: '4px'
+                    paddingBottom: '0.75rem',
+                    borderBottom: index < deadlines.length - 1 ? '1px solid #e9ecef' : 'none'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.25rem' }}>{getDeadlineIcon(deadline.type)}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                        {formatDate(deadline.date)}
-                      </div>
-                      <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                        {deadline.label}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#6c757d', marginBottom: '0.25rem' }}>
-                        {deadline.description}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: '#6c757d', fontStyle: 'italic' }}>
-                        {deadline.legal}
-                      </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <span>{getDeadlineMarker(deadline.type)}</span>
+                    <div style={{ fontWeight: 'bold' }}>
+                      {formatDate(deadline.date)}
                     </div>
+                  </div>
+                  <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem', paddingLeft: '1.5rem' }}>
+                    {deadline.label}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6c757d', paddingLeft: '1.5rem', marginBottom: '0.25rem' }}>
+                    {deadline.description}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#6c757d', fontStyle: 'italic', paddingLeft: '1.5rem' }}>
+                    {deadline.legal}
                   </div>
                 </div>
               ))}
