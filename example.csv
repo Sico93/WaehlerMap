@@ -1,0 +1,21 @@
+address,category,street,houseNumber,zip,city,country,additionalInfo
+"Friedrich-Ebert-Allee 140, 53113 Bonn",DTS,,,,,Telekom Hauptsitz
+,ISP,Landgrabenweg,151,53227,Bonn,Deutschland,Campus
+"Heinrich-Hertz-Straße 3-7, 64295 Darmstadt",GK,,,,,
+,DTS,Winterfeldtstraße,21-27,10781,Berlin,Deutschland,
+"Rotfeder-Ring 11, 60327 Frankfurt am Main",ISP,,,,,
+,GK,Bayenthalgürtel,7,50968,Köln,Deutschland,
+"Friedrich-Ebert-Allee 140, 53113 Bonn",ISP,,,,,Telekom Hauptsitz
+"Landgrabenweg 151, 53227 Bonn",DTS,,,,,
+,ISP,Theresienstraße,2,80333,München,Deutschland,
+,GK,Mönckebergstraße,11,20095,Hamburg,Deutschland,
+"Heinrich-Hertz-Straße 3-7, 64295 Darmstadt",DTS,,,,,
+"Winterfeldtstraße 21-27, 10781 Berlin",ISP,,,,,
+,DTS,Königsallee,92,40212,Düsseldorf,Deutschland,
+"Rotfeder-Ring 11, 60327 Frankfurt am Main",GK,,,,,
+,ISP,Schlossplatz,1,70173,Stuttgart,Deutschland,
+,DTS,Alter Markt,1,04109,Leipzig,Deutschland,
+"Friedrich-Ebert-Allee 140, 53113 Bonn",GK,,,,,Telekom Hauptsitz
+,ISP,Marienplatz,1,90403,Nürnberg,Deutschland,
+"Landgrabenweg 151, 53227 Bonn",GK,,,,,
+,DTS,Domplatz,6,99084,Erfurt,Deutschland,
