@@ -30,21 +30,17 @@ export const createBaseMap = (container: HTMLElement): L.Map => {
 };
 
 /**
- * Create custom numbered marker icon
- * - Single person (count = 1): Magenta
- * - Aggregated (count > 1): Green
+ * Create custom numbered marker icon for individual locations
+ * Always Magenta (Telekom brand color)
  */
 export const createNumberedIcon = (count: number): L.DivIcon => {
-  const isAggregated = count > 1;
-  const backgroundColor = isAggregated ? '#28a745' : '#e20074'; // Green for aggregated, Magenta for single
-
   const size = count < 10 ? 25 : count < 100 ? 30 : 35;
   const fontSize = count < 10 ? '12px' : count < 100 ? '11px' : '10px';
 
   return L.divIcon({
     html: `
       <div style="
-        background-color: ${backgroundColor};
+        background-color: #e20074;
         color: white;
         width: ${size}px;
         height: ${size}px;
@@ -67,19 +63,13 @@ export const createNumberedIcon = (count: number): L.DivIcon => {
 };
 
 /**
- * Create popup content for aggregated location
+ * Create popup content for individual location marker
  */
 export const createPopupContent = (
   address: string,
   totalCount: number,
   categoryCounts: Record<string, number>
 ): string => {
-  const isAggregated = totalCount > 1;
-  const headerColor = isAggregated ? '#28a745' : '#e20074'; // Green for aggregated, Magenta for single
-  const aggregationBadge = isAggregated
-    ? `<span style="background-color: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; margin-left: 0.5rem;">Aggregiert</span>`
-    : '';
-
   const categoryList = Object.entries(categoryCounts)
     .sort(([, a], [, b]) => b - a)
     .map(([cat, count]) => `<li><strong>${cat}:</strong> ${count}</li>`)
@@ -87,10 +77,7 @@ export const createPopupContent = (
 
   return `
     <div style="min-width: 200px;">
-      <h4 style="margin-top: 0; color: ${headerColor};">
-        ${address}
-        ${aggregationBadge}
-      </h4>
+      <h4 style="margin-top: 0; color: #e20074;">${address}</h4>
       <div style="margin-bottom: 0.5rem;">
         <strong>Gesamt:</strong> ${totalCount} ${totalCount === 1 ? 'Person' : 'Personen'}
       </div>

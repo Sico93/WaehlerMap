@@ -46,6 +46,9 @@ export const MapView = ({ locations }: MapViewProps) => {
 
       const marker = L.marker([location.lat, location.lon], { icon });
 
+      // Store totalCount on marker for cluster aggregation
+      (marker as any).totalCount = location.totalCount;
+
       const popupContent = createPopupContent(
         location.address,
         location.totalCount,
