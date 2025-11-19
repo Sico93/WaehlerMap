@@ -28,12 +28,30 @@ Ich möchte die Anwendung lokal laufen lassen können.
 
 Die App soll entweder `address` direkt verwenden oder aus den optionalen Feldern eine vollständige Adresse bauen.
 
+### 2.4 CSV-Format (Beispiel)
+```csv
+address,category,street,houseNumber,zip,city,country,additionalInfo
+"Musterstraße 1, 12345 Berlin",DTS,,,,,
+,ISP,Hauptstraße,42,80331,München,Deutschland,Gebäude A
+"Bahnhofstraße 10, 50667 Köln",GK,,,,,Abteilung Vertrieb
+```
+
+**Hinweise:**
+- Header-Zeile erforderlich (case-sensitive: `address`, `category`)
+- Entweder `address` gefüllt ODER Kombination aus `street`, `houseNumber`, `zip`, `city`
+- `category` ist Pflichtfeld (z.B. DTS, ISP, GK)
+- Kommas in Adressen mit Anführungszeichen escapen
+
 ## 3. Verarbeitung
 
 ### 3.1 Geocoding (OpenSource-freundlich)
 - Primär mit **Nominatim (OpenStreetMap)** oder einer selbst gehosteten Instanz.
 - API-Keys sollen **nicht erforderlich** sein.
 - Deduplizierung: Gleiche Adressen nur **einmal** geokodieren (Cache / Map).
+- **Rate-Limiting:** 1,5 Sekunden Delay zwischen Requests (Nominatim Limit: 1 req/sec)
+- **Retry-Logik:** Bei Fehlern automatisch wiederholen (max. 3 Versuche)
+- **Cache:** LocalStorage für persistentes Caching über Sessions hinweg
+- **Fehlerhafte Adressen:** Am Ende Liste aller nicht-geokodierter Adressen ausgeben
 
 ### 3.2 Datenmodell
 ```ts
@@ -60,10 +78,12 @@ Aggregat enthält Summe und Kategorienhäufigkeit.
 
 ### 4.2 Marker & Clustering
 - Leaflet.markercluster (OpenSource)
-- Marker pro Eintrag oder pro Adresse
+- **Ein Marker pro individueller Adresse** (aggregiert)
+- Marker zeigt die **Gesamtanzahl aller Personen** am Standort
 - Cluster sollen automatisch entstehen beim Herauszoomen
 - Jeder Cluster zeigt die Anzahl der enthaltenen Marker
 - Eigene iconCreateFunction für individuell gestaltete Cluster
+- **Initial-Ansicht:** fitBounds auf alle Marker (automatischer Zoom)
 
 ### 4.3 Standort-Popup
 Popup zeigt:
@@ -90,11 +110,14 @@ Popup zeigt:
   - Linke Seite: Filter + Upload
   - Rechte Seite: Karte
  
-### 6.2 Komponenten (empfohlen)
+### 6.2 Tech-Stack (final)
 
-- PapaParse (OpenSource) für CSV-Verarbeitung
-- Leaflet + MarkerCluster für Kartenlogik
-- Svelte, React oder Vanilla JS (alles OpenSource)
+- **Frontend-Framework:** React mit TypeScript
+- **Build-Tool:** Vite (schneller Dev-Server, HMR, optimiertes Build)
+- **UI-Bibliothek:** Telekom Scale (https://telekom.github.io/scale/)
+- **CSV-Parsing:** PapaParse (OpenSource)
+- **Karte:** Leaflet + Leaflet.markercluster (OpenSource)
+- **Styling:** Minimale eigene CSS + Telekom Scale Komponenten
 
 ### 6.3 Statusanzeigen
 - Fortschritt beim Geocoding: x / y Adressen verarbeitet
@@ -130,13 +153,21 @@ Optionale spätere Erweiterungen:
 - /backend (Node/Express) für Bulk-Geocoding oder Caching
 - Persistente Speicherung (SQLite)
 
-## 8. Nicht-Ziele
+## 8. Datenspeicherung & Datenschutz
+- **Keine Datenbank** erforderlich
+- **Alle Daten verbleiben im Browser** des Users (keine Server-Uploads)
+- **LocalStorage** für Geocoding-Cache (Performance-Optimierung)
+- CSV-Daten werden nur im Browser-Speicher (RAM) verarbeitet
+- Keine persistente Speicherung der CSV-Daten selbst
+
+## 9. Nicht-Ziele
 - Keine Benutzerverwaltung
 - Keine Cloud-Anbindung
 - Keine proprietären Dienste (nur OpenSource-Tools)
 - Kein Design-Framework-Zwang
 - Kein fortgeschrittenes Performance-Tuning
+- Keine Datenbank oder Backend (reine Frontend-Lösung)
 
-## 9. Zusammenfassung
+## 10. Zusammenfassung
 Das Repository soll die Basis für eine vollständig OpenSource-basierte Webanwendung bieten, die CSV-Daten (mit Adresse + Kategorie) visualisiert, geokodiert, clustert und filterbar auf einer OpenStreetMap-Karte darstellt.
 Schwerpunkt: OpenStreetMap + Leaflet + OpenSource-Bibliotheken, klare Struktur, gute Erweiterbarkeit.
