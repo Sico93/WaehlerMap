@@ -37,6 +37,29 @@ const detectFormat = (headers: string[]): 'detailed' | 'compact' => {
 };
 
 /**
+ * Extract city from address string
+ * German addresses typically follow: "Street Number, ZIP City"
+ */
+const extractCityFromAddress = (address: string): string | undefined => {
+  // Try to match: "anything, 5-digit-zip City" pattern
+  const match = address.match(/,\s*\d{5}\s+([^,]+)/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+
+  // Fallback: try to get last part after last comma
+  const parts = address.split(',').map(p => p.trim());
+  if (parts.length >= 2) {
+    // Remove ZIP code if present
+    const lastPart = parts[parts.length - 1];
+    const withoutZip = lastPart.replace(/^\d{5}\s+/, '');
+    return withoutZip || undefined;
+  }
+
+  return undefined;
+};
+
+/**
  * Parse compact CSV format (aggregated data)
  * Format: address, DTS, ISP, GK
  */
@@ -59,6 +82,7 @@ const parseCompactCSV = (file: File): Promise<ParseResult> => {
           }
 
           const address = row.address.trim();
+          const city = extractCityFromAddress(address);
 
           // Process each category column
           const categories = ['DTS', 'ISP', 'GK'] as const;
@@ -76,6 +100,7 @@ const parseCompactCSV = (file: File): Promise<ParseResult> => {
               expandedData.push({
                 address,
                 category,
+                city, // Add extracted city information
               });
             }
           });
