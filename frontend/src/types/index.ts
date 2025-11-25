@@ -61,6 +61,7 @@ export interface GeocodingError {
 export interface FilterState {
   selectedCategories: string[];
   minCount: number;
+  groupByCity: boolean; // Group locations by city for minimum count filter
 }
 
 // Geocoding progress

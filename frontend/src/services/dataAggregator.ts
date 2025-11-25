@@ -85,17 +85,53 @@ export const filterByCategories = (
 };
 
 /**
+ * Extract city from location (from first entry's source row)
+ */
+const getCityFromLocation = (location: AggregatedLocation): string | null => {
+  if (location.entries.length === 0) return null;
+  const city = location.entries[0].sourceRow.city;
+  return city ? city.trim().toLowerCase() : null;
+};
+
+/**
  * Filter aggregated locations by minimum count
+ * If groupByCity is true, locations in the same city are counted together
  */
 export const filterByMinCount = (
   locations: AggregatedLocation[],
-  minCount: number
+  minCount: number,
+  groupByCity: boolean = false
 ): AggregatedLocation[] => {
   if (minCount <= 0) {
     return locations;
   }
 
-  return locations.filter((loc) => loc.totalCount >= minCount);
+  // If not grouping by city, use simple individual count check
+  if (!groupByCity) {
+    return locations.filter((loc) => loc.totalCount >= minCount);
+  }
+
+  // Group by city: calculate total persons per city
+  const cityTotals = new Map<string, number>();
+
+  locations.forEach((loc) => {
+    const city = getCityFromLocation(loc);
+    if (city) {
+      const current = cityTotals.get(city) || 0;
+      cityTotals.set(city, current + loc.totalCount);
+    }
+  });
+
+  // Filter: keep locations if their city's total >= minCount
+  return locations.filter((loc) => {
+    const city = getCityFromLocation(loc);
+    if (!city) {
+      // Locations without city are kept if they individually meet the requirement
+      return loc.totalCount >= minCount;
+    }
+    const cityTotal = cityTotals.get(city) || 0;
+    return cityTotal >= minCount;
+  });
 };
 
 /**
@@ -104,15 +140,16 @@ export const filterByMinCount = (
 export const applyFilters = (
   locations: AggregatedLocation[],
   selectedCategories: string[],
-  minCount: number
+  minCount: number,
+  groupByCity: boolean = false
 ): AggregatedLocation[] => {
   let filtered = locations;
 
   // Apply category filter
   filtered = filterByCategories(filtered, selectedCategories);
 
-  // Apply min count filter
-  filtered = filterByMinCount(filtered, minCount);
+  // Apply min count filter (with optional city grouping)
+  filtered = filterByMinCount(filtered, minCount, groupByCity);
 
   return filtered;
 };

@@ -32,6 +32,13 @@ export const FilterPanel = ({
     });
   };
 
+  const handleGroupByCityToggle = () => {
+    onFilterChange({
+      ...filterState,
+      groupByCity: !filterState.groupByCity
+    });
+  };
+
   const handleSelectAll = () => {
     onFilterChange({
       ...filterState,
@@ -157,10 +164,39 @@ export const FilterPanel = ({
         <div style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '0.25rem' }}>
           Zeigt nur Standorte mit ≥ dieser Anzahl
         </div>
+
+        {/* City Grouping Toggle */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            marginTop: '0.75rem',
+            padding: '0.5rem',
+            backgroundColor: filterState.groupByCity ? '#e200740a' : 'transparent',
+            borderRadius: '4px',
+            border: '1px solid #dee2e6'
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={filterState.groupByCity}
+            onChange={handleGroupByCityToggle}
+            disabled={disabled}
+            style={{
+              marginRight: '0.5rem',
+              cursor: disabled ? 'not-allowed' : 'pointer'
+            }}
+          />
+          <span style={{ fontSize: '0.875rem' }}>Nach Stadt gruppieren</span>
+        </label>
+        <div style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '0.25rem' }}>
+          Standorte innerhalb derselben Stadt werden für die Mindestanzahl zusammengezählt
+        </div>
       </div>
 
       {/* Active Filters Summary */}
-      {(filterState.selectedCategories.length > 0 || filterState.minCount > 0) && (
+      {(filterState.selectedCategories.length > 0 || filterState.minCount > 0 || filterState.groupByCity) && (
         <div style={{
           marginTop: '1rem',
           padding: '0.75rem',
@@ -173,7 +209,10 @@ export const FilterPanel = ({
             <div>📌 {filterState.selectedCategories.length} Kategorie(n)</div>
           )}
           {filterState.minCount > 0 && (
-            <div>📊 Mindestens {filterState.minCount} Einträge</div>
+            <div>📊 Mindestens {filterState.minCount} Einträge{filterState.groupByCity ? ' (stadtweise)' : ''}</div>
+          )}
+          {filterState.groupByCity && filterState.minCount === 0 && (
+            <div>🏙️ Nach Stadt gruppiert</div>
           )}
         </div>
       )}

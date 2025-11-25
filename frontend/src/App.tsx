@@ -29,6 +29,7 @@ function App() {
   const [filterState, setFilterState] = useState<FilterState>({
     selectedCategories: [],
     minCount: 0,
+    groupByCity: false,
   });
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
 
@@ -53,7 +54,7 @@ function App() {
     setFilteredLocations([]);
     setParseErrors([]);
     setGeocodingErrors([]);
-    setFilterState({ selectedCategories: [], minCount: 0 });
+    setFilterState({ selectedCategories: [], minCount: 0, groupByCity: false });
     setIsProcessing(true);
 
     // Step 1: Parse CSV
@@ -131,6 +132,7 @@ function App() {
     setFilterState({
       selectedCategories: categories, // Initially select all
       minCount: 0,
+      groupByCity: false,
     });
 
     // Step 6: Set locations
@@ -148,7 +150,8 @@ function App() {
     const filtered = applyFilters(
       allLocations,
       newState.selectedCategories,
-      newState.minCount
+      newState.minCount,
+      newState.groupByCity
     );
     setFilteredLocations(filtered);
   };
