@@ -219,8 +219,9 @@ function App() {
         />
 
         {filteredLocations.length > 0 && (() => {
-          const totalPersons = filteredLocations.reduce((sum, loc) => sum + loc.totalCount, 0);
-          const councilSize = calculateCouncilSize(totalPersons);
+          const totalPersonsFiltered = filteredLocations.reduce((sum, loc) => sum + loc.totalCount, 0);
+          const totalPersonsAll = allLocations.reduce((sum, loc) => sum + loc.totalCount, 0);
+          const councilSize = calculateCouncilSize(totalPersonsAll);
 
           return (
             <>
@@ -234,7 +235,7 @@ function App() {
               }}>
                 <div><strong>📍 {filteredLocations.length}</strong> Standorte auf der Karte</div>
                 <div style={{ marginTop: '0.25rem' }}>
-                  <strong>👥 {totalPersons}</strong> Personen gesamt
+                  <strong>👥 {totalPersonsFiltered}</strong> Personen auf der Karte
                 </div>
                 {councilSize > 0 && (
                   <div style={{
@@ -244,7 +245,7 @@ function App() {
                   }}>
                     <strong>⚖️ BR-Größe: {councilSize} {councilSize === 1 ? 'Mitglied' : 'Mitglieder'}</strong>
                     <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.8 }}>
-                      (nach §9 BetrVG)
+                      (basierend auf {totalPersonsAll} importierten Personen, nach §9 BetrVG)
                     </div>
                   </div>
                 )}
