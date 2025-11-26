@@ -33,6 +33,7 @@ export interface AggregatedLocation {
   totalCount: number;
   categoryCounts: Record<string, number>; // e.g., { "DTS": 15, "ISP": 8, "GK": 3 }
   entries: ProcessedLocation[];
+  originalLocations?: AggregatedLocation[]; // For manually merged/grouped locations
 }
 
 // Geocoding result from Nominatim

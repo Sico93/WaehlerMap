@@ -73,7 +73,8 @@ export const MapView = ({
       const popupContent = createPopupContent(
         location.address,
         location.totalCount,
-        location.categoryCounts
+        location.categoryCounts,
+        location.originalLocations
       );
 
       marker.bindPopup(popupContent);

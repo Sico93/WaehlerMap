@@ -208,6 +208,7 @@ export const mergeLocations = (
     totalCount: allEntries.length,
     categoryCounts,
     entries: allEntries,
+    originalLocations: locations, // Store original locations for detailed view
   };
 };
 

@@ -72,12 +72,40 @@ export const createNumberedIcon = (count: number, isSelected: boolean = false): 
 export const createPopupContent = (
   address: string,
   totalCount: number,
-  categoryCounts: Record<string, number>
+  categoryCounts: Record<string, number>,
+  originalLocations?: Array<{
+    address: string;
+    totalCount: number;
+    categoryCounts: Record<string, number>;
+  }>
 ): string => {
   const categoryList = Object.entries(categoryCounts)
     .sort(([, a], [, b]) => b - a)
     .map(([cat, count]) => `<li><strong>${cat}:</strong> ${count}</li>`)
     .join('');
+
+  // Add section for original locations if this is a merged group
+  let originalLocationsHtml = '';
+  if (originalLocations && originalLocations.length > 1) {
+    const locList = originalLocations
+      .map(loc => {
+        const locCategoryList = Object.entries(loc.categoryCounts)
+          .sort(([, a], [, b]) => b - a)
+          .map(([cat, count]) => `${cat}: ${count}`)
+          .join(', ');
+        return `<li><strong>${loc.address}</strong> (${loc.totalCount})<br/><small style="color: #666;">${locCategoryList}</small></li>`;
+      })
+      .join('');
+
+    originalLocationsHtml = `
+      <div style="margin-top: 1rem; border-top: 1px solid #ddd; padding-top: 0.5rem;">
+        <strong>Einzelstandorte (${originalLocations.length}):</strong>
+        <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; font-size: 0.9em;">
+          ${locList}
+        </ul>
+      </div>
+    `;
+  }
 
   return `
     <div style="min-width: 200px;">
@@ -91,6 +119,7 @@ export const createPopupContent = (
           ${categoryList}
         </ul>
       </div>
+      ${originalLocationsHtml}
     </div>
   `;
 };
