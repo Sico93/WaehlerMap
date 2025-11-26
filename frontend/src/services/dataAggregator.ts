@@ -69,7 +69,49 @@ export const aggregateLocations = (
 };
 
 /**
- * Filter aggregated locations by categories
+ * Recalculate counts based on selected categories
+ * Filters entries and recalculates totalCount and categoryCounts
+ */
+export const recalculateCountsForCategories = (
+  locations: AggregatedLocation[],
+  selectedCategories: string[]
+): AggregatedLocation[] => {
+  if (selectedCategories.length === 0) {
+    return locations; // No filter, return as-is
+  }
+
+  return locations
+    .map(loc => {
+      // Filter entries to only include selected categories
+      const filteredEntries = loc.entries.filter(entry =>
+        selectedCategories.includes(entry.category)
+      );
+
+      // Skip if no entries match
+      if (filteredEntries.length === 0) {
+        return null;
+      }
+
+      // Recalculate category counts from filtered entries
+      const categoryCounts: Record<string, number> = {};
+      filteredEntries.forEach(entry => {
+        const cat = entry.category;
+        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+      });
+
+      return {
+        ...loc,
+        totalCount: filteredEntries.length,
+        categoryCounts,
+        entries: filteredEntries,
+      };
+    })
+    .filter((loc): loc is AggregatedLocation => loc !== null);
+};
+
+/**
+ * Filter aggregated locations by categories (DEPRECATED - use recalculateCountsForCategories)
+ * @deprecated Use recalculateCountsForCategories for consistent count display
  */
 export const filterByCategories = (
   locations: AggregatedLocation[],
@@ -145,8 +187,8 @@ export const applyFilters = (
 ): AggregatedLocation[] => {
   let filtered = locations;
 
-  // Apply category filter
-  filtered = filterByCategories(filtered, selectedCategories);
+  // Recalculate counts for selected categories (also filters out locations with no matching categories)
+  filtered = recalculateCountsForCategories(filtered, selectedCategories);
 
   // Apply min count filter (with optional city grouping)
   filtered = filterByMinCount(filtered, minCount, groupByCity);
