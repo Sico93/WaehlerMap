@@ -238,14 +238,16 @@ export const mergeLocations = (
     });
   });
 
-  // Calculate center point (average lat/lon)
-  const avgLat = locations.reduce((sum, loc) => sum + loc.lat, 0) / locations.length;
-  const avgLon = locations.reduce((sum, loc) => sum + loc.lon, 0) / locations.length;
+  // Find largest location for pin placement
+  // If multiple have same size, use first selected (order preserved in locations array)
+  const largestLocation = locations.reduce((largest, current) =>
+    current.totalCount > largest.totalCount ? current : largest
+  );
 
   return {
     id: crypto.randomUUID(),
-    lat: avgLat,
-    lon: avgLon,
+    lat: largestLocation.lat,
+    lon: largestLocation.lon,
     address: groupName,
     totalCount: allEntries.length,
     categoryCounts,
