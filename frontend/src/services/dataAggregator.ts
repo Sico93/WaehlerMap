@@ -1,4 +1,4 @@
-import type { CSVRow, ProcessedLocation, AggregatedLocation } from '../types';
+import type { CSVRow, ProcessedLocation, AggregatedLocation, LocationGroup } from '../types';
 import { buildAddress } from './csvParser';
 
 /**
@@ -167,4 +167,97 @@ export const getUniqueCategories = (locations: AggregatedLocation[]): string[] =
   });
 
   return Array.from(categories).sort();
+};
+
+/**
+ * Merge multiple locations into a single aggregated location
+ */
+export const mergeLocations = (
+  locations: AggregatedLocation[],
+  groupName: string
+): AggregatedLocation => {
+  if (locations.length === 0) {
+    throw new Error('Cannot merge empty location array');
+  }
+
+  if (locations.length === 1) {
+    return { ...locations[0], address: groupName };
+  }
+
+  // Merge all entries
+  const allEntries: ProcessedLocation[] = [];
+  locations.forEach(loc => allEntries.push(...loc.entries));
+
+  // Merge category counts
+  const categoryCounts: Record<string, number> = {};
+  locations.forEach(loc => {
+    Object.entries(loc.categoryCounts).forEach(([cat, count]) => {
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + count;
+    });
+  });
+
+  // Calculate center point (average lat/lon)
+  const avgLat = locations.reduce((sum, loc) => sum + loc.lat, 0) / locations.length;
+  const avgLon = locations.reduce((sum, loc) => sum + loc.lon, 0) / locations.length;
+
+  return {
+    id: crypto.randomUUID(),
+    lat: avgLat,
+    lon: avgLon,
+    address: groupName,
+    totalCount: allEntries.length,
+    categoryCounts,
+    entries: allEntries,
+  };
+};
+
+/**
+ * Apply location groups to merge selected locations
+ */
+export const applyLocationGroups = (
+  locations: AggregatedLocation[],
+  groups: LocationGroup[]
+): AggregatedLocation[] => {
+  if (groups.length === 0) {
+    return locations;
+  }
+
+  // Create map of location ID to group
+  const locationToGroup = new Map<string, LocationGroup>();
+  groups.forEach(group => {
+    group.locationIds.forEach(id => {
+      locationToGroup.set(id, group);
+    });
+  });
+
+  const result: AggregatedLocation[] = [];
+  const processedIds = new Set<string>();
+
+  locations.forEach(loc => {
+    if (processedIds.has(loc.id)) {
+      return; // Already processed as part of a group
+    }
+
+    const group = locationToGroup.get(loc.id);
+
+    if (group) {
+      // Find all locations in this group
+      const groupLocations = locations.filter(l =>
+        group.locationIds.includes(l.id)
+      );
+
+      // Merge them
+      const merged = mergeLocations(groupLocations, group.name);
+      result.push(merged);
+
+      // Mark all as processed
+      groupLocations.forEach(l => processedIds.add(l.id));
+    } else {
+      // Not in any group, keep as-is
+      result.push(loc);
+      processedIds.add(loc.id);
+    }
+  });
+
+  return result;
 };

@@ -7,9 +7,17 @@ import { getClusterOptions } from '../map/clusterConfig';
 
 interface MapViewProps {
   locations: AggregatedLocation[];
+  selectedLocationIds?: Set<string>;
+  isGroupingMode?: boolean;
+  onToggleLocationSelection?: (locationId: string) => void;
 }
 
-export const MapView = ({ locations }: MapViewProps) => {
+export const MapView = ({
+  locations,
+  selectedLocationIds = new Set(),
+  isGroupingMode = false,
+  onToggleLocationSelection
+}: MapViewProps) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerClusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -42,12 +50,24 @@ export const MapView = ({ locations }: MapViewProps) => {
 
     // Add markers for each location
     locations.forEach((location) => {
-      const icon = createNumberedIcon(location.totalCount);
+      const isSelected = selectedLocationIds.has(location.id);
+      const icon = createNumberedIcon(location.totalCount, isSelected);
 
       const marker = L.marker([location.lat, location.lon], { icon });
 
-      // Store totalCount on marker for cluster aggregation
+      // Store totalCount and location ID on marker
       (marker as any).totalCount = location.totalCount;
+      (marker as any).locationId = location.id;
+
+      // Handle CTRL+Click for selection
+      marker.on('click', (e: L.LeafletMouseEvent) => {
+        if (isGroupingMode && e.originalEvent.ctrlKey && onToggleLocationSelection) {
+          e.originalEvent.preventDefault();
+          e.originalEvent.stopPropagation();
+          L.DomEvent.stopPropagation(e);
+          onToggleLocationSelection(location.id);
+        }
+      });
 
       const popupContent = createPopupContent(
         location.address,
@@ -73,7 +93,7 @@ export const MapView = ({ locations }: MapViewProps) => {
         });
       }
     }
-  }, [locations]);
+  }, [locations, selectedLocationIds, isGroupingMode, onToggleLocationSelection]);
 
   return (
     <div

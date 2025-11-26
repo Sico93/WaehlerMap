@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { ProgressIndicator } from './components/ProgressIndicator';
 import { ErrorList } from './components/ErrorList';
 import { FilterPanel } from './components/FilterPanel';
 import { MapView } from './components/MapView';
 import { ElectionCalendar } from './components/ElectionCalendar';
+import { GroupManagement } from './components/GroupManagement';
 import type {
   ProcessedLocation,
   AggregatedLocation,
   GeocodingError,
   GeocodingProgress,
   FilterState,
+  LocationGroup,
 } from './types';
 import { parseCSVFile, getUniqueAddresses } from './services/csvParser';
 import { geocodeAddress } from './services/geocoding';
@@ -19,8 +21,10 @@ import {
   aggregateLocations,
   applyFilters,
   getUniqueCategories,
+  applyLocationGroups,
 } from './services/dataAggregator';
 import { calculateCouncilSize } from './services/electionCalculator';
+import { loadGroups, saveGroups } from './services/groupStorage';
 
 function App() {
   // State
@@ -46,6 +50,17 @@ function App() {
 
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [geocodingErrors, setGeocodingErrors] = useState<GeocodingError[]>([]);
+
+  // Location grouping state
+  const [locationGroups, setLocationGroups] = useState<LocationGroup[]>([]);
+  const [selectedLocationIds, setSelectedLocationIds] = useState<Set<string>>(new Set());
+  const [isGroupingMode, setIsGroupingMode] = useState(false);
+
+  // Load groups from LocalStorage on mount
+  useEffect(() => {
+    const savedGroups = loadGroups();
+    setLocationGroups(savedGroups);
+  }, []);
 
   // Handle file upload and processing
   const handleFileSelect = async (file: File) => {
@@ -147,13 +162,77 @@ function App() {
   // Handle filter changes
   const handleFilterChange = (newState: FilterState) => {
     setFilterState(newState);
+
+    // Apply location groups first, then filters
+    const grouped = applyLocationGroups(allLocations, locationGroups);
     const filtered = applyFilters(
-      allLocations,
+      grouped,
       newState.selectedCategories,
       newState.minCount,
       newState.groupByCity
     );
     setFilteredLocations(filtered);
+  };
+
+  // Update filtered locations when groups change
+  useEffect(() => {
+    if (allLocations.length > 0) {
+      const grouped = applyLocationGroups(allLocations, locationGroups);
+      const filtered = applyFilters(
+        grouped,
+        filterState.selectedCategories,
+        filterState.minCount,
+        filterState.groupByCity
+      );
+      setFilteredLocations(filtered);
+    }
+  }, [locationGroups, allLocations, filterState]);
+
+  // Grouping handlers
+  const handleToggleGroupingMode = () => {
+    setIsGroupingMode(!isGroupingMode);
+    if (isGroupingMode) {
+      // Clear selection when leaving grouping mode
+      setSelectedLocationIds(new Set());
+    }
+  };
+
+  const handleToggleLocationSelection = (locationId: string) => {
+    setSelectedLocationIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(locationId)) {
+        newSet.delete(locationId);
+      } else {
+        newSet.add(locationId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleCreateGroup = (name: string, locationIds: string[]) => {
+    const newGroup: LocationGroup = {
+      id: crypto.randomUUID(),
+      name,
+      locationIds,
+      createdAt: Date.now(),
+    };
+
+    const updatedGroups = [...locationGroups, newGroup];
+    setLocationGroups(updatedGroups);
+    saveGroups(updatedGroups);
+
+    // Clear selection
+    setSelectedLocationIds(new Set());
+  };
+
+  const handleDeleteGroup = (groupId: string) => {
+    const updatedGroups = locationGroups.filter(g => g.id !== groupId);
+    setLocationGroups(updatedGroups);
+    saveGroups(updatedGroups);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedLocationIds(new Set());
   };
 
   return (
@@ -217,6 +296,19 @@ function App() {
           onFilterChange={handleFilterChange}
           disabled={isProcessing || allLocations.length === 0}
         />
+
+        {allLocations.length > 0 && (
+          <GroupManagement
+            groups={locationGroups}
+            locations={allLocations}
+            selectedLocationIds={selectedLocationIds}
+            isGroupingMode={isGroupingMode}
+            onToggleGroupingMode={handleToggleGroupingMode}
+            onCreateGroup={handleCreateGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onClearSelection={handleClearSelection}
+          />
+        )}
 
         {filteredLocations.length > 0 && (() => {
           const totalPersonsFiltered = filteredLocations.reduce((sum, loc) => sum + loc.totalCount, 0);
@@ -331,7 +423,12 @@ function App() {
             </div>
           </div>
         ) : (
-          <MapView locations={filteredLocations} />
+          <MapView
+            locations={filteredLocations}
+            selectedLocationIds={selectedLocationIds}
+            isGroupingMode={isGroupingMode}
+            onToggleLocationSelection={handleToggleLocationSelection}
+          />
         )}
       </div>
 

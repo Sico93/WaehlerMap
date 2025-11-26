@@ -33,14 +33,18 @@ export const createBaseMap = (container: HTMLElement): L.Map => {
  * Create custom numbered marker icon for individual locations
  * Always Magenta (Telekom brand color)
  */
-export const createNumberedIcon = (count: number): L.DivIcon => {
+export const createNumberedIcon = (count: number, isSelected: boolean = false): L.DivIcon => {
   const size = count < 10 ? 25 : count < 100 ? 30 : 35;
   const fontSize = count < 10 ? '12px' : count < 100 ? '11px' : '10px';
+
+  const bgColor = isSelected ? '#0078d4' : '#e20074';
+  const borderColor = isSelected ? '#005a9e' : 'white';
+  const borderWidth = isSelected ? '3px' : '2px';
 
   return L.divIcon({
     html: `
       <div style="
-        background-color: #e20074;
+        background-color: ${bgColor};
         color: white;
         width: ${size}px;
         height: ${size}px;
@@ -50,7 +54,7 @@ export const createNumberedIcon = (count: number): L.DivIcon => {
         justify-content: center;
         font-weight: bold;
         font-size: ${fontSize};
-        border: 2px solid white;
+        border: ${borderWidth} solid ${borderColor};
         box-shadow: 0 2px 5px rgba(0,0,0,0.3);
       ">
         ${count}

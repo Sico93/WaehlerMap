@@ -72,3 +72,11 @@ export interface GeocodingProgress {
   failed: number;
   current: string;
 }
+
+// Location Group (manual linking)
+export interface LocationGroup {
+  id: string;
+  name: string;
+  locationIds: string[]; // IDs of locations in this group
+  createdAt: number; // timestamp
+}
