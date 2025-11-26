@@ -21,6 +21,7 @@ export const MapView = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerClusterRef = useRef<L.MarkerClusterGroup | null>(null);
+  const previousLocationCountRef = useRef<number>(0);
 
   // Initialize map
   useEffect(() => {
@@ -83,8 +84,8 @@ export const MapView = ({
     mapRef.current.addLayer(markerCluster);
     markerClusterRef.current = markerCluster;
 
-    // Fit bounds to show all markers
-    if (locations.length > 0) {
+    // Fit bounds only when location count changes (not when selection changes)
+    if (locations.length > 0 && locations.length !== previousLocationCountRef.current) {
       const bounds = markerCluster.getBounds();
       if (bounds.isValid()) {
         mapRef.current.fitBounds(bounds, {
@@ -92,6 +93,7 @@ export const MapView = ({
           maxZoom: 15,
         });
       }
+      previousLocationCountRef.current = locations.length;
     }
   }, [locations, selectedLocationIds, isGroupingMode, onToggleLocationSelection]);
 
