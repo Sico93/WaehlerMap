@@ -7,12 +7,21 @@ import { getClusterOptions } from '../map/clusterConfig';
 
 interface MapViewProps {
   locations: AggregatedLocation[];
+  selectedLocationIds?: Set<string>;
+  isGroupingMode?: boolean;
+  onToggleLocationSelection?: (locationId: string) => void;
 }
 
-export const MapView = ({ locations }: MapViewProps) => {
+export const MapView = ({
+  locations,
+  selectedLocationIds = new Set(),
+  isGroupingMode = false,
+  onToggleLocationSelection
+}: MapViewProps) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerClusterRef = useRef<L.MarkerClusterGroup | null>(null);
+  const previousLocationCountRef = useRef<number>(0);
 
   // Initialize map
   useEffect(() => {
@@ -42,17 +51,30 @@ export const MapView = ({ locations }: MapViewProps) => {
 
     // Add markers for each location
     locations.forEach((location) => {
-      const icon = createNumberedIcon(location.totalCount);
+      const isSelected = selectedLocationIds.has(location.id);
+      const icon = createNumberedIcon(location.totalCount, isSelected);
 
       const marker = L.marker([location.lat, location.lon], { icon });
 
-      // Store totalCount on marker for cluster aggregation
+      // Store totalCount and location ID on marker
       (marker as any).totalCount = location.totalCount;
+      (marker as any).locationId = location.id;
+
+      // Handle CTRL+Click for selection
+      marker.on('click', (e: L.LeafletMouseEvent) => {
+        if (isGroupingMode && e.originalEvent.ctrlKey && onToggleLocationSelection) {
+          e.originalEvent.preventDefault();
+          e.originalEvent.stopPropagation();
+          L.DomEvent.stopPropagation(e);
+          onToggleLocationSelection(location.id);
+        }
+      });
 
       const popupContent = createPopupContent(
         location.address,
         location.totalCount,
-        location.categoryCounts
+        location.categoryCounts,
+        location.originalLocations
       );
 
       marker.bindPopup(popupContent);
@@ -63,8 +85,8 @@ export const MapView = ({ locations }: MapViewProps) => {
     mapRef.current.addLayer(markerCluster);
     markerClusterRef.current = markerCluster;
 
-    // Fit bounds to show all markers
-    if (locations.length > 0) {
+    // Fit bounds only when location count changes (not when selection changes)
+    if (locations.length > 0 && locations.length !== previousLocationCountRef.current) {
       const bounds = markerCluster.getBounds();
       if (bounds.isValid()) {
         mapRef.current.fitBounds(bounds, {
@@ -72,8 +94,9 @@ export const MapView = ({ locations }: MapViewProps) => {
           maxZoom: 15,
         });
       }
+      previousLocationCountRef.current = locations.length;
     }
-  }, [locations]);
+  }, [locations, selectedLocationIds, isGroupingMode, onToggleLocationSelection]);
 
   return (
     <div

@@ -33,6 +33,7 @@ export interface AggregatedLocation {
   totalCount: number;
   categoryCounts: Record<string, number>; // e.g., { "DTS": 15, "ISP": 8, "GK": 3 }
   entries: ProcessedLocation[];
+  originalLocations?: AggregatedLocation[]; // For manually merged/grouped locations
 }
 
 // Geocoding result from Nominatim
@@ -61,6 +62,7 @@ export interface GeocodingError {
 export interface FilterState {
   selectedCategories: string[];
   minCount: number;
+  groupByCity: boolean; // Group locations by city for minimum count filter
 }
 
 // Geocoding progress
@@ -70,4 +72,12 @@ export interface GeocodingProgress {
   cached: number;
   failed: number;
   current: string;
+}
+
+// Location Group (manual linking)
+export interface LocationGroup {
+  id: string;
+  name: string;
+  locationIds: string[]; // IDs of locations in this group
+  createdAt: number; // timestamp
 }
