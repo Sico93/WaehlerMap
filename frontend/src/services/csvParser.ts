@@ -260,7 +260,14 @@ export const parseCSVFile = (file: File): Promise<ParseResult> => {
 
 /**
  * Build full address from CSV row
- * Uses 'address' field if available, otherwise constructs from components
+ *
+ * Priority:
+ * 1. Use 'address' field if available (complete address in one field)
+ * 2. Otherwise construct from components: street, zip, city, country
+ *
+ * Note: 'houseNumber' is OPTIONAL and can be:
+ * - In a separate column (e.g., street="Landgrabenweg", houseNumber="151")
+ * - Included in the street column (e.g., street="Landgrabenweg 151")
  */
 export const buildAddress = (row: CSVRow): string => {
   // Use direct address if available
@@ -271,9 +278,11 @@ export const buildAddress = (row: CSVRow): string => {
   // Build from components
   const parts: string[] = [];
 
+  // Street: Can contain just street name or "street + house number" combined
   if (row.street) {
     let streetPart = row.street.trim();
-    if (row.houseNumber) {
+    // If house number is in separate column, append it
+    if (row.houseNumber && row.houseNumber.trim() !== '') {
       streetPart += ' ' + row.houseNumber.trim();
     }
     parts.push(streetPart);

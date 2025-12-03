@@ -15,10 +15,12 @@
  * 'kategorie': 'category'
  */
 export const COLUMN_MAPPING: Record<string, string> = {
-  // Address fields
+  // Address fields (complete address in one field)
   'address': 'address',
   'adresse': 'address',
   'anschrift': 'address',
+  'vollständige adresse': 'address',
+  'vollstaendige adresse': 'address',
 
   // Category/Department field
   'category': 'category',
@@ -26,15 +28,21 @@ export const COLUMN_MAPPING: Record<string, string> = {
   'abteilung': 'category',
   'bereich': 'category',
 
-  // Street
+  // Street (can contain street + house number combined, e.g. "Landgrabenweg 151")
+  // OR just street name if house number is in separate column
   'street': 'street',
   'straße': 'street',
   'strasse': 'street',
+  'straße und hausnummer': 'street',
+  'strasse und hausnummer': 'street',
+  'straße+hausnummer': 'street',
+  'strasse+hausnummer': 'street',
 
-  // House number
+  // House number (OPTIONAL - can be included in 'street' field)
   'housenumber': 'houseNumber',
   'hausnummer': 'houseNumber',
   'hnr': 'houseNumber',
+  'nr': 'houseNumber',
 
   // ZIP code
   'zip': 'zip',
