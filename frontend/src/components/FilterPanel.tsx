@@ -1,4 +1,5 @@
 import type { FilterState } from '../types';
+import { getDepartmentDisplayName } from '../config/mappings';
 
 interface FilterPanelProps {
   categories: string[];
@@ -134,7 +135,7 @@ export const FilterPanel = ({
                     cursor: disabled ? 'not-allowed' : 'pointer'
                   }}
                 />
-                <span>{category}</span>
+                <span>{getDepartmentDisplayName(category)}</span>
               </label>
             ))}
           </div>

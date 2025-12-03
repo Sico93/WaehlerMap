@@ -1,4 +1,5 @@
 import L from 'leaflet';
+import { getDepartmentDisplayName } from '../config/mappings';
 
 // Fix Leaflet default icon issue with Vite/Webpack
 // https://github.com/Leaflet/Leaflet/issues/4968
@@ -81,7 +82,7 @@ export const createPopupContent = (
 ): string => {
   const categoryList = Object.entries(categoryCounts)
     .sort(([, a], [, b]) => b - a)
-    .map(([cat, count]) => `<li><strong>${cat}:</strong> ${count}</li>`)
+    .map(([cat, count]) => `<li><strong>${getDepartmentDisplayName(cat)}:</strong> ${count}</li>`)
     .join('');
 
   // Add section for original locations if this is a merged group
@@ -91,7 +92,7 @@ export const createPopupContent = (
       .map(loc => {
         const locCategoryList = Object.entries(loc.categoryCounts)
           .sort(([, a], [, b]) => b - a)
-          .map(([cat, count]) => `${cat}: ${count}`)
+          .map(([cat, count]) => `${getDepartmentDisplayName(cat)}: ${count}`)
           .join(', ');
         return `<li><strong>${loc.address}</strong> (${loc.totalCount})<br/><small style="color: #666;">${locCategoryList}</small></li>`;
       })
