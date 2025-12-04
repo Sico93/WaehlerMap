@@ -211,10 +211,20 @@ const parseDetailedCSV = (file: File): Promise<ParseResult> => {
             return;
           }
 
-          // Store row with mapped category
+          // Extract city from address if not provided separately
+          // This is important for groupByCity filter to work correctly
+          let city = row.city;
+          if (!city || city.trim() === '') {
+            if (hasDirectAddress) {
+              city = extractCityFromAddress(row.address!);
+            }
+          }
+
+          // Store row with mapped category and extracted city
           validData.push({
             ...row,
             category: mappedCategory,
+            city: city, // Ensure city is set for groupByCity filtering
           });
         });
 
