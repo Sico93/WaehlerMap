@@ -1,5 +1,10 @@
 import Papa from 'papaparse';
 import type { CSVRow } from '../types';
+import {
+  mapColumnName,
+  mapDepartmentValue,
+  isDepartmentColumn,
+} from '../config/mappings';
 
 export interface ParseResult {
   data: CSVRow[];
@@ -8,31 +13,45 @@ export interface ParseResult {
 }
 
 // Compact CSV format (aggregated by location)
+// Dynamic interface - department columns are determined at runtime
 export interface CompactCSVRow {
   address: string;
-  DTS?: string | number;
-  ISP?: string | number;
-  GK?: string | number;
+  [key: string]: string | number | undefined; // Dynamic department columns
 }
 
 /**
+ * Map CSV headers to internal field names
+ */
+const mapHeaders = (headers: string[]): string[] => {
+  return headers.map(header => mapColumnName(header));
+};
+
+/**
  * Detect CSV format based on headers
+ *
+ * - Compact format: address + department columns (DTS, ISP, GK, etc.) with counts
+ * - Detailed format: one row per person, with optional category field
  */
 const detectFormat = (headers: string[]): 'detailed' | 'compact' => {
-  const headerSet = new Set(headers.map(h => h.trim().toLowerCase()));
+  // First map headers to internal names
+  const mappedHeaders = mapHeaders(headers);
+  const headerSet = new Set(mappedHeaders.map(h => h.trim().toLowerCase()));
 
-  // Compact format has: address + category columns (DTS, ISP, GK)
+  // Check for department columns (any column that matches department aliases)
+  const hasDepartmentColumns = headers.some(h => isDepartmentColumn(h));
+
+  // Compact format requires: address + at least one department column (AND no category field)
+  // This ensures CSVs with just "address, category" are treated as detailed format
   const hasCompactColumns =
     headerSet.has('address') &&
-    (headerSet.has('dts') || headerSet.has('isp') || headerSet.has('gk'));
+    hasDepartmentColumns &&
+    !headerSet.has('category');
 
-  // Detailed format has: category field
-  const hasDetailedColumns = headerSet.has('category');
-
-  if (hasCompactColumns && !hasDetailedColumns) {
+  if (hasCompactColumns) {
     return 'compact';
   }
 
+  // All other formats (including minimal CSVs with just address) are detailed
   return 'detailed';
 };
 
@@ -61,9 +80,10 @@ const extractCityFromAddress = (address: string): string | undefined => {
 
 /**
  * Parse compact CSV format (aggregated data)
- * Format: address, DTS, ISP, GK
+ * Format: address, [department columns...]
+ * Department columns are detected dynamically using isDepartmentColumn()
  */
-const parseCompactCSV = (file: File): Promise<ParseResult> => {
+const parseCompactCSV = (file: File, originalHeaders: string[]): Promise<ParseResult> => {
   return new Promise((resolve) => {
     const errors: string[] = [];
     const expandedData: CSVRow[] = [];
@@ -71,6 +91,10 @@ const parseCompactCSV = (file: File): Promise<ParseResult> => {
     Papa.parse<CompactCSVRow>(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: (header) => {
+        // Map CSV header to internal name
+        return mapColumnName(header);
+      },
       complete: (results) => {
         results.data.forEach((row, index) => {
           const rowNumber = index + 2;
@@ -84,10 +108,25 @@ const parseCompactCSV = (file: File): Promise<ParseResult> => {
           const address = row.address.trim();
           const city = extractCityFromAddress(address);
 
-          // Process each category column
-          const categories = ['DTS', 'ISP', 'GK'] as const;
-          categories.forEach(category => {
-            const value = row[category];
+          // Process all department columns dynamically
+          // Find which columns in the row are department columns
+          Object.keys(row).forEach(columnName => {
+            // Check if this is a department column (using original header for detection)
+            const originalHeader = originalHeaders.find(h =>
+              mapColumnName(h) === columnName
+            );
+
+            if (!originalHeader || !isDepartmentColumn(originalHeader)) {
+              return; // Not a department column
+            }
+
+            // Map department value to internal code
+            const departmentCode = mapDepartmentValue(originalHeader);
+            if (!departmentCode) {
+              return;
+            }
+
+            const value = row[columnName];
             const count = value ? parseInt(String(value)) : 0;
 
             // Skip if 0 or invalid
@@ -99,7 +138,7 @@ const parseCompactCSV = (file: File): Promise<ParseResult> => {
             for (let i = 0; i < count; i++) {
               expandedData.push({
                 address,
-                category,
+                category: departmentCode,
                 city, // Add extracted city information
               });
             }
@@ -136,15 +175,26 @@ const parseDetailedCSV = (file: File): Promise<ParseResult> => {
     Papa.parse<CSVRow>(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: (header) => {
+        // Map CSV header to internal name
+        return mapColumnName(header);
+      },
       complete: (results) => {
         // Validate each row
         results.data.forEach((row, index) => {
           const rowNumber = index + 2; // +2 because of header and 0-index
 
-          // Check required field: category
-          if (!row.category || row.category.trim() === '') {
-            errors.push(`Zeile ${rowNumber}: Kategorie fehlt`);
-            return;
+          // Category field is OPTIONAL - defaults to "Sonstige" (SONST) if empty or missing
+          let mappedCategory = 'SONST'; // Default value
+
+          if (row.category && row.category.trim() !== '') {
+            // Map department value to internal code
+            const mapped = mapDepartmentValue(row.category);
+            if (!mapped) {
+              errors.push(`Zeile ${rowNumber}: Unbekannte Kategorie "${row.category}"`);
+              return;
+            }
+            mappedCategory = mapped;
           }
 
           // Check if either 'address' OR combination of address fields exists
@@ -161,7 +211,21 @@ const parseDetailedCSV = (file: File): Promise<ParseResult> => {
             return;
           }
 
-          validData.push(row);
+          // Extract city from address if not provided separately
+          // This is important for groupByCity filter to work correctly
+          let city = row.city;
+          if (!city || city.trim() === '') {
+            if (hasDirectAddress) {
+              city = extractCityFromAddress(row.address!);
+            }
+          }
+
+          // Store row with mapped category and extracted city
+          validData.push({
+            ...row,
+            category: mappedCategory,
+            city: city, // Ensure city is set for groupByCity filtering
+          });
         });
 
         // Check for parsing errors
@@ -191,12 +255,12 @@ export const parseCSVFile = (file: File): Promise<ParseResult> => {
       header: true,
       preview: 1,
       complete: (previewResults) => {
-        const headers = previewResults.meta.fields || [];
-        const format = detectFormat(headers);
+        const originalHeaders = previewResults.meta.fields || [];
+        const format = detectFormat(originalHeaders);
 
         // Parse with appropriate parser
         if (format === 'compact') {
-          parseCompactCSV(file).then(resolve);
+          parseCompactCSV(file, originalHeaders).then(resolve);
         } else {
           parseDetailedCSV(file).then(resolve);
         }
@@ -211,7 +275,14 @@ export const parseCSVFile = (file: File): Promise<ParseResult> => {
 
 /**
  * Build full address from CSV row
- * Uses 'address' field if available, otherwise constructs from components
+ *
+ * Priority:
+ * 1. Use 'address' field if available (complete address in one field)
+ * 2. Otherwise construct from components: street, zip, city, country
+ *
+ * Note: 'houseNumber' is OPTIONAL and can be:
+ * - In a separate column (e.g., street="Landgrabenweg", houseNumber="151")
+ * - Included in the street column (e.g., street="Landgrabenweg 151")
  */
 export const buildAddress = (row: CSVRow): string => {
   // Use direct address if available
@@ -222,9 +293,11 @@ export const buildAddress = (row: CSVRow): string => {
   // Build from components
   const parts: string[] = [];
 
+  // Street: Can contain just street name or "street + house number" combined
   if (row.street) {
     let streetPart = row.street.trim();
-    if (row.houseNumber) {
+    // If house number is in separate column, append it
+    if (row.houseNumber && row.houseNumber.trim() !== '') {
       streetPart += ' ' + row.houseNumber.trim();
     }
     parts.push(streetPart);

@@ -13,7 +13,7 @@ export const createProcessedLocation = (
     id: crypto.randomUUID(),
     lat,
     lon,
-    category: row.category,
+    category: row.category || 'SONST', // Fallback to "Sonstige" if undefined
     rawAddress: buildAddress(row),
     sourceRow: row,
   };

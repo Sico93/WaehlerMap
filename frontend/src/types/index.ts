@@ -5,7 +5,7 @@
 // CSV Row from uploaded file
 export interface CSVRow {
   address?: string;
-  category: string;
+  category?: string; // Optional - defaults to "Sonstige" (SONST) if not provided
   street?: string;
   houseNumber?: string;
   zip?: string;
