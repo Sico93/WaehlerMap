@@ -28,6 +28,9 @@ const mapHeaders = (headers: string[]): string[] => {
 
 /**
  * Detect CSV format based on headers
+ *
+ * - Compact format: address + department columns (DTS, ISP, GK, etc.) with counts
+ * - Detailed format: one row per person, with optional category field
  */
 const detectFormat = (headers: string[]): 'detailed' | 'compact' => {
   // First map headers to internal names
@@ -37,16 +40,18 @@ const detectFormat = (headers: string[]): 'detailed' | 'compact' => {
   // Check for department columns (any column that matches department aliases)
   const hasDepartmentColumns = headers.some(h => isDepartmentColumn(h));
 
-  // Compact format has: address + at least one department column
-  const hasCompactColumns = headerSet.has('address') && hasDepartmentColumns;
+  // Compact format requires: address + at least one department column (AND no category field)
+  // This ensures CSVs with just "address, category" are treated as detailed format
+  const hasCompactColumns =
+    headerSet.has('address') &&
+    hasDepartmentColumns &&
+    !headerSet.has('category');
 
-  // Detailed format has: category field
-  const hasDetailedColumns = headerSet.has('category');
-
-  if (hasCompactColumns && !hasDetailedColumns) {
+  if (hasCompactColumns) {
     return 'compact';
   }
 
+  // All other formats (including minimal CSVs with just address) are detailed
   return 'detailed';
 };
 
@@ -179,17 +184,17 @@ const parseDetailedCSV = (file: File): Promise<ParseResult> => {
         results.data.forEach((row, index) => {
           const rowNumber = index + 2; // +2 because of header and 0-index
 
-          // Check required field: category
-          if (!row.category || row.category.trim() === '') {
-            errors.push(`Zeile ${rowNumber}: Kategorie fehlt`);
-            return;
-          }
+          // Category field is OPTIONAL - defaults to "Sonstige" (SONST) if empty or missing
+          let mappedCategory = 'SONST'; // Default value
 
-          // Map department value to internal code
-          const mappedCategory = mapDepartmentValue(row.category);
-          if (!mappedCategory) {
-            errors.push(`Zeile ${rowNumber}: Unbekannte Kategorie "${row.category}"`);
-            return;
+          if (row.category && row.category.trim() !== '') {
+            // Map department value to internal code
+            const mapped = mapDepartmentValue(row.category);
+            if (!mapped) {
+              errors.push(`Zeile ${rowNumber}: Unbekannte Kategorie "${row.category}"`);
+              return;
+            }
+            mappedCategory = mapped;
           }
 
           // Check if either 'address' OR combination of address fields exists

@@ -122,6 +122,19 @@ export const DEPARTMENT_MAPPINGS: DepartmentMapping[] = [
       'Azubis',
     ],
   },
+  {
+    code: 'SONST',
+    displayName: 'Sonstige',
+    aliases: [
+      'SONST',
+      'Sonstige',
+      'Sonstiges',
+      'Andere',
+      'Other',
+      'Unbekannt',
+      'Unknown',
+    ],
+  },
 ];
 
 /**
