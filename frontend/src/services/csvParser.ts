@@ -79,22 +79,66 @@ const extractCityFromAddress = (address: string): string | undefined => {
 };
 
 /**
+ * Read file content with proper encoding detection
+ * Tries UTF-8 first, then falls back to ISO-8859-1 (Latin-1) for Mac/Windows compatibility
+ */
+const readFileWithEncoding = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      if (!event.target?.result) {
+        reject(new Error('Datei konnte nicht gelesen werden'));
+        return;
+      }
+
+      const buffer = event.target.result as ArrayBuffer;
+
+      // Try UTF-8 first
+      try {
+        const decoder = new TextDecoder('utf-8', { fatal: true });
+        const text = decoder.decode(buffer);
+        resolve(text);
+      } catch (e) {
+        // If UTF-8 fails, try ISO-8859-1 (common for Mac/Windows CSV files)
+        try {
+          const decoder = new TextDecoder('iso-8859-1');
+          const text = decoder.decode(buffer);
+          resolve(text);
+        } catch (e2) {
+          reject(new Error('Encoding konnte nicht erkannt werden'));
+        }
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error('Fehler beim Lesen der Datei'));
+    };
+
+    reader.readAsArrayBuffer(file);
+  });
+};
+
+/**
  * Parse compact CSV format (aggregated data)
  * Format: address, [department columns...]
  * Department columns are detected dynamically using isDepartmentColumn()
  */
 const parseCompactCSV = (file: File, originalHeaders: string[]): Promise<ParseResult> => {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     const errors: string[] = [];
     const expandedData: CSVRow[] = [];
 
-    Papa.parse<CompactCSVRow>(file, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => {
-        // Map CSV header to internal name
-        return mapColumnName(header);
-      },
+    try {
+      const fileContent = await readFileWithEncoding(file);
+
+      Papa.parse<CompactCSVRow>(fileContent, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => {
+          // Map CSV header to internal name
+          return mapColumnName(header);
+        },
       complete: (results) => {
         results.data.forEach((row, index) => {
           const rowNumber = index + 2;
@@ -155,12 +199,16 @@ const parseCompactCSV = (file: File, originalHeaders: string[]): Promise<ParseRe
           errors,
           isCompactFormat: true
         });
-      },
-      error: (error) => {
-        errors.push(`Fehler beim Lesen der Datei: ${error.message}`);
-        resolve({ data: [], errors, isCompactFormat: true });
-      },
-    });
+        },
+        error: (error) => {
+          errors.push(`Fehler beim Lesen der Datei: ${error.message}`);
+          resolve({ data: [], errors, isCompactFormat: true });
+        },
+      });
+    } catch (error) {
+      errors.push(`Fehler beim Lesen der Datei: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      resolve({ data: [], errors, isCompactFormat: true });
+    }
   });
 };
 
@@ -168,17 +216,20 @@ const parseCompactCSV = (file: File, originalHeaders: string[]): Promise<ParseRe
  * Parse detailed CSV file and validate required fields
  */
 const parseDetailedCSV = (file: File): Promise<ParseResult> => {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     const errors: string[] = [];
     const validData: CSVRow[] = [];
 
-    Papa.parse<CSVRow>(file, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => {
-        // Map CSV header to internal name
-        return mapColumnName(header);
-      },
+    try {
+      const fileContent = await readFileWithEncoding(file);
+
+      Papa.parse<CSVRow>(fileContent, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => {
+          // Map CSV header to internal name
+          return mapColumnName(header);
+        },
       complete: (results) => {
         // Validate each row
         results.data.forEach((row, index) => {
@@ -236,12 +287,16 @@ const parseDetailedCSV = (file: File): Promise<ParseResult> => {
         }
 
         resolve({ data: validData, errors, isCompactFormat: false });
-      },
-      error: (error) => {
-        errors.push(`Fehler beim Lesen der Datei: ${error.message}`);
-        resolve({ data: [], errors, isCompactFormat: false });
-      },
-    });
+        },
+        error: (error) => {
+          errors.push(`Fehler beim Lesen der Datei: ${error.message}`);
+          resolve({ data: [], errors, isCompactFormat: false });
+        },
+      });
+    } catch (error) {
+      errors.push(`Fehler beim Lesen der Datei: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      resolve({ data: [], errors, isCompactFormat: false });
+    }
   });
 };
 
@@ -249,27 +304,37 @@ const parseDetailedCSV = (file: File): Promise<ParseResult> => {
  * Parse CSV file (auto-detect format)
  */
 export const parseCSVFile = (file: File): Promise<ParseResult> => {
-  return new Promise((resolve) => {
-    // First, peek at headers to detect format
-    Papa.parse(file, {
-      header: true,
-      preview: 1,
-      complete: (previewResults) => {
-        const originalHeaders = previewResults.meta.fields || [];
-        const format = detectFormat(originalHeaders);
+  return new Promise(async (resolve) => {
+    try {
+      // Read file with proper encoding
+      const fileContent = await readFileWithEncoding(file);
 
-        // Parse with appropriate parser
-        if (format === 'compact') {
-          parseCompactCSV(file, originalHeaders).then(resolve);
-        } else {
+      // First, peek at headers to detect format
+      Papa.parse(fileContent, {
+        header: true,
+        preview: 1,
+        complete: (previewResults) => {
+          const originalHeaders = previewResults.meta.fields || [];
+          const format = detectFormat(originalHeaders);
+
+          // Parse with appropriate parser
+          if (format === 'compact') {
+            parseCompactCSV(file, originalHeaders).then(resolve);
+          } else {
+            parseDetailedCSV(file).then(resolve);
+          }
+        },
+        error: () => {
+          // Fallback to detailed format on error
           parseDetailedCSV(file).then(resolve);
-        }
-      },
-      error: () => {
-        // Fallback to detailed format on error
-        parseDetailedCSV(file).then(resolve);
-      },
-    });
+        },
+      });
+    } catch (error) {
+      resolve({
+        data: [],
+        errors: [`Fehler beim Lesen der Datei: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`],
+      });
+    }
   });
 };
 
